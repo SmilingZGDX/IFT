@@ -1,0 +1,86 @@
+import javafx.application.Application;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+import java.sql.*;
+
+public class SupermarketApp extends Application {
+    private TableView<Product> tableView = new TableView<>();
+    private ObservableList<Product> productList = FXCollections.observableArrayList();
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    @Override
+    public void start(Stage primaryStage) {
+        connectToDatabase();
+        
+        TableColumn<Product, Integer> idColumn = new TableColumn<>("Product ID");
+        idColumn.setCellValueFactory(data -> data.getValue().productIdProperty().asObject());
+        
+        TableColumn<Product, String> nameColumn = new TableColumn<>("Product Name");
+        nameColumn.setCellValueFactory(data -> data.getValue().productNameProperty());
+        
+        TableColumn<Product, Double> priceColumn = new TableColumn<>("Price");
+        priceColumn.setCellValueFactory(data -> data.getValue().priceProperty().asObject());
+        
+        tableView.getColumns().addAll(idColumn, nameColumn, priceColumn);
+        tableView.setItems(productList);
+
+        Button refreshButton = new Button("Refresh");
+        refreshButton.setOnAction(e -> loadProducts());
+        
+        VBox root = new VBox(10, tableView, refreshButton);
+        root.setAlignment(Pos.CENTER);
+        root.setPrefSize(600, 400);
+        
+        primaryStage.setScene(new Scene(root));
+        primaryStage.setTitle("Supermarket Database Viewer");
+        primaryStage.show();
+        
+        loadProducts();
+    }
+
+    private void connectToDatabase() {
+        try {
+            Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/SupermarketDB", "root", "password");
+            System.out.println("Connected to database");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void loadProducts() {
+        productList.clear();
+        try (Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/SupermarketDB", "root", "password");
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT * FROM Products")) {
+            while (rs.next()) {
+                productList.add(new Product(rs.getInt("ProductID"), rs.getString("ProductName"), rs.getDouble("Price")));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+class Product {
+    private final IntegerProperty productId;
+    private final StringProperty productName;
+    private final DoubleProperty price;
+
+    public Product(int id, String name, double price) {
+        this.productId = new SimpleIntegerProperty(id);
+        this.productName = new SimpleStringProperty(name);
+        this.price = new SimpleDoubleProperty(price);
+    }
+
+    public IntegerProperty productIdProperty() { return productId; }
+    public StringProperty productNameProperty() { return productName; }
+    public DoubleProperty priceProperty() { return price; }
+}
